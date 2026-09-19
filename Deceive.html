@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYSTEM_MONITOR // NULL</title>
+    <style>
+        body {
+            background-color: #030303;
+            color: #b0b0b0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* CRT Scanline & Flicker Effect */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            z-index: 999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 750px;
+            padding: 2rem;
+            z-index: 2;
+        }
+
+        .status-header {
+            font-size: 0.75rem;
+            letter-spacing: 4px;
+            color: #cc2929;
+            margin-bottom: 2.5rem;
+            text-transform: uppercase;
+            animation: flicker 2s infinite;
+        }
+
+        .lore-box {
+            font-size: 1.35rem;
+            line-height: 1.9;
+            color: #d1d1d1;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.08);
+            border-left: 2px solid #550000;
+            border-right: 2px solid #550000;
+            padding: 2rem;
+            background: rgba(15, 5, 5, 0.5);
+        }
+
+        .highlight {
+            color: #ffffff;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .entity-name {
+            color: #b82b2b;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        /* Interactive ARG Element */
+        .terminal-trigger {
+            margin-top: 3.5rem;
+            font-size: 0.8rem;
+            color: #444444;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: color 0.3s ease;
+        }
+
+        .terminal-trigger:hover {
+            color: #992222;
+            text-shadow: 0 0 5px rgba(153, 34, 34, 0.5);
+        }
+
+        .hidden-terminal {
+            display: none;
+            margin-top: 1.5rem;
+        }
+
+        input[type="text"] {
+            background: #0a0505;
+            border: 1px solid #441111;
+            color: #ff3333;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            outline: none;
+            width: 250px;
+            text-align: center;
+        }
+
+        input[type="text"]:focus {
+            border-color: #992222;
+            box-shadow: 0 0 8px rgba(153, 34, 34, 0.4);
+        }
+
+        .response-text {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #883333;
+            min-height: 1.2rem;
+        }
+
+        /* Redacted Government/Entity File Styles */
+        .unlocked-data {
+            display: none;
+            margin-top: 2rem;
+            padding: 2rem;
+            background: rgba(10, 10, 10, 0.85);
+            border: 1px solid #333333;
+            text-align: left;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: #999999;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+            animation: fadeIn 1.5s ease forwards;
+        }
+
+        .file-title {
+            text-align: center;
+            color: #cc3333;
+            font-weight: bold;
+            letter-spacing: 3px;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #331111;
+            padding-bottom: 0.5rem;
+        }
+
+        /* Heavy Blackout Redactions */
+        .redacted {
+            background-color: #1a1a1a;
+            color: #1a1a1a;
+            user-select: none;
+            padding: 0 4px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .redacted:hover {
+            background-color: #2b0a0a;
+            color: #ff4444;
+        }
+
+        .file-footer {
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: #555555;
+            text-align: right;
+            border-top: 1px dashed #222222;
+            padding-top: 0.5rem;
+        }
+
+        /* Lockdown Screen Overlay */
+        #lockdownScreen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #020000;
+            z-index: 10000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ff1a1a;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        #lockdownScreen h1 {
+            font-size: 2rem;
+            letter-spacing: 5px;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+
+        #lockdownScreen p {
+            color: #888888;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.85; }
+            50% { opacity: 1; }
+            52% { opacity: 0.4; }
+            54% { opacity: 0.95; }
+            80% { opacity: 0.9; }
+            100% { opacity: 0.85; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="mainContainer">
+        <div class="status-header" id="statusHeader">SEC_LEVEL: 0 // FEED STATUS: STABLE (FOR NOW)</div>
+        
+        <div class="lore-box">
+            The entity is a <span class="highlight">horseman</span>, but <span class="entity-name">she</span> has him chained to her will.
+        </div>
+
+        <div class="terminal-trigger" onclick="toggleTerminal()">
+            [CLICK TO INTERCEPT COMMAND LINE]
+        </div>
+
+        <div class="hidden-terminal" id="terminalBox">
+            <input type="text" id="commandInput" placeholder="ENTER OVERRIDE CODE" onkeypress="checkCommand(event)">
+            <div class="response-text" id="responseText"></div>
+        </div>
+
+        <div class="unlocked-data" id="unlockedData">
+            <div class="file-title">INCIDENT REPORT: CLASS-IV SUBJECT RESTRAINT</div>
+            <p><strong>DATE:</strong> <span class="redacted">[CLASSIFIED: 10/14/2014]</span></p>
+            <p><strong>SUBJECT A:</strong> Entity designation <span class="redacted">THE ENTITY</span>. Manifested containment breach at sector <span class="redacted">SECTOR 7-G</span>.</p>
+            <p><strong>HANDLER / OPERATIVE:</strong> <span class="redacted">TEU-TEL-QUESSIR</span> (<span class="redacted">Designation: Celestial Anomaly #092</span>).</p>
+            <p><strong>HEAD OF RESEARCH:</strong> <span class="redacted">DR / AGENT LAIYA</span>.</p>
+            <p><strong>OBSERVATIONS:</strong> The physical chains are merely symbolic anchors. The true restraint is psychological. The horseman possesses enough apocalyptic output to level continents, yet remains entirely subservient to <span class="redacted">HER COMMAND PROTOCOL</span>. Warning: Any weakening of her focus will result in <span class="redacted">TOTAL IMMEDIATE CATASTROPHE</span>.</p>
+            <div class="file-footer">
+                FILE ID: 0x994-B // ACCESS LOGGED // MOUSE-OVER TO ATTEMPT DECRYPTION
+            </div>
+        </div>
+    </div>
+
+    <!-- Permanent Lockdown Screen -->
+    <div id="lockdownScreen">
+        <h1>// SESSION TERMINATED //</h1>
+        <p>10-MINUTE ACCESS WINDOW EXPIRED. CONTAINMENT PROTOCOL ENGAGED.</p>
+        <p style="margin-top: 2rem; color: #333333;">CONNECTION SEVERED PERMANENTLY.</p>
+    </div>
+
+    <script>
+        let sessionTimerStarted = false;
+        const SESSION_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+        function startSessionTimer() {
+            if (sessionTimerStarted) return;
+            sessionTimerStarted = true;
+
+            // Optional: Update header to show countdown tracking has begun
+            const header = document.getElementById('statusHeader');
+            let timeLeft = SESSION_DURATION;
+
+            const countdownInterval = setInterval(() => {
+                timeLeft -= 1000;
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    triggerLockdown();
+                } else {
+                    let mins = Math.floor(timeLeft / 60000);
+                    let secs = Math.floor((timeLeft % 60000) / 1000);
+                    header.innerText = `SEC_LEVEL: 0 // SESSION TTL: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                }
+            }, 1000);
+        }
+
+        function triggerLockdown() {
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('lockdownScreen').style.display = 'flex';
+        }
+
+        // Starts the 10-minute timer the exact moment the page is accessed/loaded
+        window.onload = function() {
+            startSessionTimer();
+        };
+
+        function toggleTerminal() {
+            const terminal = document.getElementById('terminalBox');
+            terminal.style.display = terminal.style.display === 'block' ? 'none' : 'block';
+            document.getElementById('commandInput').focus();
+        }
+
+        function checkCommand(event) {
+            if (event.key === 'Enter') {
+                const val = document.getElementById('commandInput').value.trim().toUpperCase();
+                const resp = document.getElementById('responseText');
+                const unlockedDiv = document.getElementById('unlockedData');
+                const inputField = document.getElementById('commandInput');
+                
+                if (val === 'WILL' || val === 'HER WILL') {
+                    resp.style.color = "#33aa33";
+                    resp.innerText = "ACCESS GRANTED. FILE DECRYPTED.";
+                    inputField.disabled = true; 
+                    
+                    setTimeout(() => {
+                        unlockedDiv.style.display = 'block';
+                    }, 1000);
+
+                } else if (val === '') {
+                    resp.innerText = "";
+                } else {
+                    resp.style.color = "#aa3333";
+                    resp.innerText = "ACCESS DENIED. THE CHAINS TIGHTEN.";
+                }
+            }
+        }
+
+        // DevTools lore hint
+        console.log("%cWARNING:", "color: red; font-size: 18px; font-weight: bold;");
+        console.log("The horseman does not want to be here. Her grip is absolute.");
+    </script>
+
+</body>
+</html>
